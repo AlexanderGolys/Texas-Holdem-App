@@ -11,6 +11,7 @@ WINDOWHEIGHT = 480
 BGCOLOR = (10, 10, 60)
 BLACK = (0, 0, 0)
 STACKBG = (200, 200, 200, 40)
+REDSTACK = (255, 200, 200)
 cards = [i for i in range(54)]
 PLAYER0X = WINDOWWIDTH / 2 - 100
 PLAYER0Y =  WINDOWHEIGHT / 4 * 3
@@ -31,8 +32,12 @@ def main(no_players):
     assert no_players < 7, 'Max number of players is 6'
     step = 0
     players = [classes.Player(1/no_players, i) for i in range(no_players)]
+    dealer = random.randint(0, no_players)
+    bb = 0.02
+    sb = 0.01
 
     while True:
+        dealer = (dealer + 1) % no_players
         pygame.init()
         global FPSCLOCK, DISPLAYSURF
         FPSCLOCK = pygame.time.Clock()
@@ -50,6 +55,8 @@ def main(no_players):
             for player in players:
                 draw_players_reversed_cards(player)
                 draw_players_stack(player)
+            print(players)
+            play_preflop(players, dealer, bb, sb)
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -142,7 +149,94 @@ def give_players_y_coords(player_nb):
     elif player_nb == 5:
         return PLAYER5Y
 
+
 def give_players_coords(player_nb):
     return give_players_x_coords(player_nb), give_players_y_coords(player_nb)
+
+
+def read_decision():
+    print('what you wanna do?')
+    dec = input()
+    if dec == 'c':  # check or call
+        return 'check'
+    elif dec == 'f':
+        return 'fold'
+    elif dec == 'b':
+        bet = input()
+        return bet
+    else:
+        print('incorrect')
+        return read_decision()
+
+
+def play_preflop(players, dealer, bb, sb):
+    table_stack = 0
+    i = 0
+    max_bet = bb
+    turn = (dealer + 1) % len(players)
+    print(players[turn])
+    players[turn].raise_(sb)
+    draw_preflop_sit(players, turn)
+    for player in players:
+        draw_players_stack(player)
+    table_stack += bb
+    turn = (turn + 1) % len(players)
+    i += 1
+    players[turn].raise_(bb)
+    draw_preflop_sit(players, turn)
+    for player in players:
+        draw_players_stack(player)
+    turn = (turn + 1) % len(players)
+    i += 1
+    equal = False
+    while not equal:
+        if players[turn].fold:
+            continue
+        for player in players:
+            draw_players_stack(player)
+        draw_preflop_sit(players, turn)
+
+        decision = read_decision()
+        if decision == 'check':
+            if players[turn].bet < max_bet:
+                players[turn].raise_(max_bet - players[turn].bet)
+                table_stack += max_bet - players[turn].bet
+        elif decision == 'fold':
+            players[turn].fold_()
+        else:
+            players[turn].raise_(max(float(decision), bb))
+            table_stack += max(float(decision), bb)
+            if players[turn].bet < max_bet:
+                players[turn].raise_(max_bet - players[turn].bet)
+                table_stack += max_bet - players[turn].bet
+            max_bet = players[turn].bet
+        turn = (turn + 1) % len(players)
+        i += 1
+        if i > len(players):
+            equal = True
+            for player in players:
+                if player.bet != max_bet and not player.fold:
+                    equal = False
+    return table_stack
+
+
+def draw_preflop_sit(players, turn):
+    for i, player in enumerate(players):
+        font_obj = pygame.font.Font('freesansbold.ttf', 15)
+        if not player.fold:
+            stack_surface = font_obj.render(str(player.bet)[:5], True, BLACK, STACKBG)
+        else:
+            stack_surface = font_obj.render('FOLD', True, BLACK, STACKBG)
+        if i == turn:
+            if not player.fold:
+                stack_surface = font_obj.render(str(player.bet)[:5], True, BLACK, REDSTACK)
+            else:
+                stack_surface = font_obj.render('FOLD', True, BLACK, REDSTACK)
+
+        stack_rect = stack_surface.get_rect()
+        stack_rect.center = (give_players_x_coords(player.number) + 20, give_players_y_coords(player.number) - 20)
+        DISPLAYSURF.blit(stack_surface, stack_rect)
+        pygame.display.update()
+
 
 main(6)
