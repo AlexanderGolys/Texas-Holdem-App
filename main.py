@@ -49,14 +49,21 @@ def main(no_players):
             get_cards(cards, players)
             step += 1
 
+        draw_table()
+        draw_your_hand(players[0].hand)
+        for player in players:
+            draw_players_reversed_cards(player)
+            draw_players_stack(player)
+
         if step == 1:
-            draw_table()
-            draw_your_hand(players[0].hand)
-            for player in players:
-                draw_players_reversed_cards(player)
-                draw_players_stack(player)
-            print(players)
-            play_preflop(players, dealer, bb, sb)
+            pot = play_preflop(players, dealer, bb, sb)
+            step += 1
+
+        for player in players:
+            player.give_to_the_pot()
+            draw_players_stack(player)
+        draw_preflop_sit(players, dealer)
+        draw_pot(pot)
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -170,26 +177,27 @@ def read_decision():
 
 
 def play_preflop(players, dealer, bb, sb):
-    table_stack = 0
+    pot = 0
     i = 0
     max_bet = bb
     turn = (dealer + 1) % len(players)
     print(players[turn])
     players[turn].raise_(sb)
+    pot += sb
     draw_preflop_sit(players, turn)
     for player in players:
         draw_players_stack(player)
-    table_stack += bb
     turn = (turn + 1) % len(players)
     i += 1
     players[turn].raise_(bb)
+    pot += bb
     draw_preflop_sit(players, turn)
     for player in players:
         draw_players_stack(player)
-    turn = (turn + 1) % len(players)
     i += 1
     equal = False
     while not equal:
+        turn = (turn + 1) % len(players)
         if players[turn].fold:
             continue
         for player in players:
@@ -200,24 +208,23 @@ def play_preflop(players, dealer, bb, sb):
         if decision == 'check':
             if players[turn].bet < max_bet:
                 players[turn].raise_(max_bet - players[turn].bet)
-                table_stack += max_bet - players[turn].bet
+                pot += max_bet - players[turn].bet
         elif decision == 'fold':
             players[turn].fold_()
         else:
             players[turn].raise_(max(float(decision), bb))
-            table_stack += max(float(decision), bb)
+            pot += max(float(decision), bb)
             if players[turn].bet < max_bet:
                 players[turn].raise_(max_bet - players[turn].bet)
-                table_stack += max_bet - players[turn].bet
+                pot += max_bet - players[turn].bet
             max_bet = players[turn].bet
-        turn = (turn + 1) % len(players)
         i += 1
         if i > len(players):
             equal = True
             for player in players:
                 if player.bet != max_bet and not player.fold:
                     equal = False
-    return table_stack
+    return pot
 
 
 def draw_preflop_sit(players, turn):
@@ -237,6 +244,15 @@ def draw_preflop_sit(players, turn):
         stack_rect.center = (give_players_x_coords(player.number) + 20, give_players_y_coords(player.number) - 20)
         DISPLAYSURF.blit(stack_surface, stack_rect)
         pygame.display.update()
+
+
+def draw_pot(pot):
+    font_obj = pygame.font.Font('freesansbold.ttf', 15)
+    stack_surface = font_obj.render(str(pot)[:5], True, BLACK, STACKBG)
+    stack_rect = stack_surface.get_rect()
+    stack_rect.center = (WINDOWWIDTH/2, WINDOWHEIGHT *3 /5)
+    DISPLAYSURF.blit(stack_surface, stack_rect)
+
 
 
 main(6)

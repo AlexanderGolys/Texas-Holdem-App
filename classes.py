@@ -20,3 +20,6 @@ class Player:
 
     def earn(self, amount):
         self.stack += amount
+
+    def give_to_the_pot(self):
+        self.bet = 0
