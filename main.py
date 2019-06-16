@@ -42,6 +42,7 @@ def main(no_players):
     bb = 0.02
     sb = 0.01
     stage = 0
+    pot = 0
 
     while True:
         if stage == 0:
@@ -64,6 +65,7 @@ def main(no_players):
         flop = get_flop(cards)
         draw_flop(flop)
         draw_pot(pot)
+        play_flop(players, dealer, bb, flop, pot)
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -238,14 +240,46 @@ def play_preflop(players, dealer, bb, sb):
                     equal = False
     return pot
 
-def play_flop(players, dealer, bb):
-    equal = False
+
+def play_flop(players, dealer, bb, flop, table_pot):
     pot = 0
+    i = 0
     max_bet = 0
     turn = (dealer + 1) % len(players)
-    i = 0
-    while not equal or i < len(players):
-        pass
+    draw_preflop_sit(players, turn)
+    for player in players:
+        draw_players_stack(player)
+    equal = False
+    while not equal:
+        turn = (turn + 1) % len(players)
+        if players[turn].fold:
+            continue
+        standard_draw(players)
+        draw_preflop_sit(players, turn)
+        draw_flop(flop)
+        draw_pot(table_pot)
+
+        decision = read_decision()
+        if decision == 'check':
+            if players[turn].bet < max_bet:
+                pot += max_bet - players[turn].bet
+                players[turn].raise_(max_bet - players[turn].bet)
+        elif decision == 'fold':
+            players[turn].fold_()
+        else:
+            pot += max(float(decision), bb)
+            players[turn].raise_(max(float(decision), bb))
+            if players[turn].bet < max_bet:
+                pot += max_bet - players[turn].bet
+                players[turn].raise_(max_bet - players[turn].bet)
+            max_bet = players[turn].bet
+        i += 1
+        if i > len(players):
+            equal = True
+            for player in players:
+                if player.bet != max_bet and not player.fold:
+                    equal = False
+    return pot
 
 
 def draw_flop(flop):
@@ -257,7 +291,6 @@ def draw_flop(flop):
     DISPLAYSURF.blit(card2_img, (WINDOWWIDTH/2 - 50, WINDOWHEIGHT/2 - 50))
     DISPLAYSURF.blit(card3_img, (WINDOWWIDTH/2 + 40 - 50, WINDOWHEIGHT/2 - 50))
     pygame.display.update()
-
 
 
 def draw_preflop_sit(players, turn):
@@ -285,7 +318,7 @@ def draw_pot(pot):
     stack_rect = stack_surface.get_rect()
     stack_rect.center = (WINDOWWIDTH/2, WINDOWHEIGHT *3 /5)
     DISPLAYSURF.blit(stack_surface, stack_rect)
-
+    pygame.display.update()
 
 
 main(6)
