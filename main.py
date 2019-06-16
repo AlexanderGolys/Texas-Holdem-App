@@ -12,7 +12,7 @@ BGCOLOR = (10, 10, 60)
 BLACK = (0, 0, 0)
 STACKBG = (200, 200, 200, 40)
 REDSTACK = (255, 200, 200)
-cards = [i for i in range(54)]
+cards = [i for i in range(52)]
 PLAYER0X = WINDOWWIDTH / 2 - 100
 PLAYER0Y =  WINDOWHEIGHT / 4 * 3
 PLAYER1X = WINDOWWIDTH / 2 - 300
@@ -28,6 +28,12 @@ PLAYER5Y = WINDOWHEIGHT / 4 * 3
 
 
 def main(no_players):
+    pygame.init()
+    global FPSCLOCK, DISPLAYSURF
+    FPSCLOCK = pygame.time.Clock()
+    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+    pygame.display.set_caption("Texas Holdem No-Limit Poker")
+    DISPLAYSURF.fill(BGCOLOR)
     assert no_players > 1, 'Number of players must be minimum 2'
     assert no_players < 7, 'Max number of players is 6'
     step = 0
@@ -35,34 +41,28 @@ def main(no_players):
     dealer = random.randint(0, no_players)
     bb = 0.02
     sb = 0.01
+    stage = 0
 
     while True:
-        dealer = (dealer + 1) % no_players
-        pygame.init()
-        global FPSCLOCK, DISPLAYSURF
-        FPSCLOCK = pygame.time.Clock()
-        DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
-        pygame.display.set_caption("Texas Holdem No-Limit Poker")
-        DISPLAYSURF.fill(BGCOLOR)
-
-        if step == 0:
+        if stage == 0:
             get_cards(cards, players)
-            step += 1
+        dealer = (dealer + 1) % no_players
 
-        draw_table()
-        draw_your_hand(players[0].hand)
-        for player in players:
-            draw_players_reversed_cards(player)
-            draw_players_stack(player)
+        standard_draw(players)
 
-        if step == 1:
+        if stage == 0:
             pot = play_preflop(players, dealer, bb, sb)
-            step += 1
 
-        for player in players:
-            player.give_to_the_pot()
-            draw_players_stack(player)
-        draw_preflop_sit(players, dealer)
+            for player in players:
+                player.give_to_the_pot()
+                draw_players_stack(player)
+            draw_preflop_sit(players, dealer)
+            print(pot)
+            draw_pot(pot)
+            stage += 1
+
+        flop = get_flop(cards)
+        draw_flop(flop)
         draw_pot(pot)
 
         for event in pygame.event.get():
@@ -102,6 +102,15 @@ def draw_players_stack(player):
     DISPLAYSURF.blit(stack_surface, stack_rect)
 
 
+def standard_draw(players):
+    DISPLAYSURF.fill(BGCOLOR)
+    draw_table()
+    draw_your_hand(players[0].hand)
+    for player in players:
+        draw_players_reversed_cards(player)
+        draw_players_stack(player)
+
+
 def decode_cards(nb):
     color = (nb % 4) + 1
     value = nb // 4
@@ -125,6 +134,10 @@ def get_cards(c, players):
     for player in players:
         player.get_cards([c[0], c[1]])
         del c[:2]
+
+
+def get_flop(cards):
+    return cards[:3]
 
 
 def give_players_x_coords(player_nb):
@@ -200,23 +213,22 @@ def play_preflop(players, dealer, bb, sb):
         turn = (turn + 1) % len(players)
         if players[turn].fold:
             continue
-        for player in players:
-            draw_players_stack(player)
+        standard_draw(players)
         draw_preflop_sit(players, turn)
 
         decision = read_decision()
         if decision == 'check':
             if players[turn].bet < max_bet:
-                players[turn].raise_(max_bet - players[turn].bet)
                 pot += max_bet - players[turn].bet
+                players[turn].raise_(max_bet - players[turn].bet)
         elif decision == 'fold':
             players[turn].fold_()
         else:
-            players[turn].raise_(max(float(decision), bb))
             pot += max(float(decision), bb)
+            players[turn].raise_(max(float(decision), bb))
             if players[turn].bet < max_bet:
-                players[turn].raise_(max_bet - players[turn].bet)
                 pot += max_bet - players[turn].bet
+                players[turn].raise_(max_bet - players[turn].bet)
             max_bet = players[turn].bet
         i += 1
         if i > len(players):
@@ -225,6 +237,27 @@ def play_preflop(players, dealer, bb, sb):
                 if player.bet != max_bet and not player.fold:
                     equal = False
     return pot
+
+def play_flop(players, dealer, bb):
+    equal = False
+    pot = 0
+    max_bet = 0
+    turn = (dealer + 1) % len(players)
+    i = 0
+    while not equal or i < len(players):
+        pass
+
+
+def draw_flop(flop):
+    cards_to_draw = [decode_cards(i) for i in flop]
+    card1_img = pygame.image.load('./graphics/' + cards_to_draw[0] + '.png')
+    card2_img = pygame.image.load('./graphics/' + cards_to_draw[1] + '.png')
+    card3_img = pygame.image.load('./graphics/' + cards_to_draw[2] + '.png')
+    DISPLAYSURF.blit(card1_img, (WINDOWWIDTH/2 - 40 - 50, WINDOWHEIGHT/2 - 50))
+    DISPLAYSURF.blit(card2_img, (WINDOWWIDTH/2 - 50, WINDOWHEIGHT/2 - 50))
+    DISPLAYSURF.blit(card3_img, (WINDOWWIDTH/2 + 40 - 50, WINDOWHEIGHT/2 - 50))
+    pygame.display.update()
+
 
 
 def draw_preflop_sit(players, turn):
