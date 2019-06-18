@@ -321,5 +321,4 @@ def draw_pot(pot):
     pygame.display.update()
 
 
-
 main(6)
