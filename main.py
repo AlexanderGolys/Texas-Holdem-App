@@ -64,8 +64,14 @@ def main(no_players):
 
         flop = get_flop(cards)
         draw_flop(flop)
+        pot += play_flop(players, dealer, bb, flop, pot, 0)
+        turn = get_turn(cards)
+        draw_turn(turn)
+        pot += play_flop(players, dealer, bb, turn, pot, 1)
+        river = get_river(cards)
+        draw_river(river)
+        pot += play_flop(players, dealer, bb, river, pot, 2)
         draw_pot(pot)
-        play_flop(players, dealer, bb, flop, pot)
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -140,6 +146,14 @@ def get_cards(c, players):
 
 def get_flop(cards):
     return cards[:3]
+
+
+def get_turn(cards):
+    return cards[:4]
+
+
+def get_river(cards):
+    return cards[:5]
 
 
 def give_players_x_coords(player_nb):
@@ -238,10 +252,12 @@ def play_preflop(players, dealer, bb, sb):
             for player in players:
                 if player.bet != max_bet and not player.fold:
                     equal = False
+    for player in players:
+        player.give_to_the_pot()
     return pot
 
 
-def play_flop(players, dealer, bb, flop, table_pot):
+def play_flop(players, dealer, bb, table_cards, table_pot, round):
     pot = 0
     i = 0
     max_bet = 0
@@ -256,7 +272,12 @@ def play_flop(players, dealer, bb, flop, table_pot):
             continue
         standard_draw(players)
         draw_preflop_sit(players, turn)
-        draw_flop(flop)
+        if round == 0:
+            draw_flop(table_cards)
+        elif round == 1:
+            draw_turn(table_cards)
+        elif round == 2:
+            draw_river(table_cards)
         draw_pot(table_pot)
 
         decision = read_decision()
@@ -279,6 +300,8 @@ def play_flop(players, dealer, bb, flop, table_pot):
             for player in players:
                 if player.bet != max_bet and not player.fold:
                     equal = False
+    for player in players:
+        player.give_to_the_pot()
     return pot
 
 
@@ -290,6 +313,22 @@ def draw_flop(flop):
     DISPLAYSURF.blit(card1_img, (WINDOWWIDTH/2 - 40 - 50, WINDOWHEIGHT/2 - 50))
     DISPLAYSURF.blit(card2_img, (WINDOWWIDTH/2 - 50, WINDOWHEIGHT/2 - 50))
     DISPLAYSURF.blit(card3_img, (WINDOWWIDTH/2 + 40 - 50, WINDOWHEIGHT/2 - 50))
+    pygame.display.update()
+
+
+def draw_turn(turn):
+    flop = turn[:3]
+    draw_flop(flop)
+    card_img = pygame.image.load('./graphics/' + decode_cards(turn[3]) + '.png')
+    DISPLAYSURF.blit(card_img, (WINDOWWIDTH/2 + 80 - 50, WINDOWHEIGHT/2 - 50))
+    pygame.display.update()
+
+
+def draw_river(river):
+    turn = river[:4]
+    draw_turn(turn)
+    card_img = pygame.image.load('./graphics/' + decode_cards(river[4]) + '.png')
+    DISPLAYSURF.blit(card_img, (WINDOWWIDTH / 2 + 120 - 50, WINDOWHEIGHT / 2 - 50))
     pygame.display.update()
 
 
