@@ -72,6 +72,8 @@ def main(no_players):
         draw_river(river)
         pot += play_flop(players, dealer, bb, river, pot, 2)
         draw_pot(pot)
+        for player in players:
+            player.allin = False
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -268,7 +270,7 @@ def play_flop(players, dealer, bb, table_cards, table_pot, round):
     equal = False
     while not equal:
         turn = (turn + 1) % len(players)
-        if players[turn].fold:
+        if players[turn].fold or players[turn].allin:
             continue
         standard_draw(players)
         draw_preflop_sit(players, turn)
@@ -295,13 +297,15 @@ def play_flop(players, dealer, bb, table_cards, table_pot, round):
                 players[turn].raise_(max_bet - players[turn].bet)
             max_bet = players[turn].bet
         i += 1
-        if i > len(players):
+        if i >= len(players):
             equal = True
             for player in players:
                 if player.bet != max_bet and not player.fold:
                     equal = False
+
     for player in players:
         player.give_to_the_pot()
+        player.fold = False
     return pot
 
 
@@ -335,8 +339,10 @@ def draw_river(river):
 def draw_preflop_sit(players, turn):
     for i, player in enumerate(players):
         font_obj = pygame.font.Font('freesansbold.ttf', 15)
-        if not player.fold:
+        if not player.fold and player.stack > 0:
             stack_surface = font_obj.render(str(player.bet)[:5], True, BLACK, STACKBG)
+        elif not player.fold:
+            stack_surface = font_obj.render('ALL-IN', True, BLACK, STACKBG)
         else:
             stack_surface = font_obj.render('FOLD', True, BLACK, STACKBG)
         if i == turn:
@@ -359,5 +365,131 @@ def draw_pot(pot):
     DISPLAYSURF.blit(stack_surface, stack_rect)
     pygame.display.update()
 
+
+def winning(table, players):
+    pass
+
+
+def decode_for_winning(cards):
+    decoded = [decode_cards(card) for card in cards]
+    result = []
+    for card in decoded:
+        if card[0] == 'A':
+            one_result = 13
+        elif card[0] == 'K':
+            one_result = 12
+        elif card[0] == 'Q':
+            one_result = 11
+        elif card[0] == 'J':
+            one_result = 10
+        elif card[0] == 'T':
+            one_result = 9
+        else:
+            one_result = int(card[0])
+        result.append([one_result, int(card[1])])
+
+
+def evaluate(table, player):
+    pair = False
+    t_pair = False
+    trip = False
+    streight = False
+    flush = False
+    full = False
+    four = False
+    s_flush = False
+
+    temp = table + player
+    ev_cards = [classes.Card(decode_for_winning(card)[0], decode_for_winning(card)[1]) for card in temp]
+    ev_cards.sort(key=lambda c: c.value)
+    for i in range(len(ev_cards) - 1):
+        if pair and ev_cards[i].value == ev_cards[i + 1].value:
+            t_pair = True
+            c_t_pair = c_pair + [ev_cards[i], ev_cards[i+1]]
+        if ev_cards[i].value == ev_cards[i + 1].value:
+            pair = True
+            c_pair = [ev_cards[i], ev_cards[i+1]]
+    for i in range(len(ev_cards) - 2):
+        if trip and ev_cards[i].value == ev_cards[i + 1].value:
+            c_full = c_trip + [ev_cards[i], ev_cards[i+1]]
+        if ev_cards[i].value == ev_cards[i + 2].value:
+            trip = True
+            c_trip = [ev_cards[i], ev_cards[i+1], ev_cards[i+2]]
+    for i in range(len(ev_cards) - 3):
+        if ev_cards[i].value == ev_cards[i + 3].value:
+            four = True
+            c_four = [ev_cards[i], ev_cards[i+1], ev_cards[i+2], ev_cards[i+3]]
+    for i in range(len(ev_cards) - 4):
+        if ev_cards[i].value == ev_cards[i+1].value - 1 == ev_cards[i+2].value - 2 == ev_cards[i+3].value - 3 == ev_cards[i+4].value - 4:
+            streight = True
+            c_streight = [ev_cards[i], ev_cards[i+1], ev_cards[i+2], ev_cards[i+3], ev_cards[i+4]]
+            c_streight.sort(key=lambda c: c.color)
+            if c_streight[0].color == c_streight[4].color:
+                s_flush = True
+                c_s_flush = c_streight
+    ev_cards.sort(key=lambda c: c.color)
+    for i in range(len(ev_cards) - 4):
+        if flush and ev_cards[i].color == ev_cards[i+4].color:
+            c_flush.append(ev_cards[i+4])
+        if not flush and ev_cards[i].color == ev_cards[i+4].color:
+            flush = True
+            c_flush = [ev_cards[i], ev_cards[i+1], ev_cards[i+2], ev_cards[i+3], ev_cards[i+4]]
+
+
+    ev_cards.sort(key=lambda c: c.value, reverse=True)
+
+    if s_flush:
+        return 8, c_s_flush
+    elif four:
+        for card in ev_cards:
+            if card not in c_four:
+                c_four.append(card)
+                break
+        return 7, c_four
+    elif full:
+        if len(c_full) == 5:
+            return 6, c_full
+        c_full.sort(key=lambda c: c.value)
+        if c_full[0] != c_full[2]:
+            return 6, c_full[2:]
+        return 6, c_full[:3] + c_full[5:]
+    elif flush:
+        return 5, c_flush[:6]
+    elif streight:
+        return 4, c_streight
+    elif trip:
+        for card in ev_cards:
+            if card not in c_trip:
+                c_trip.append(card)
+                break
+        for card in ev_cards:
+            if card not in c_trip:
+                c_trip.append(card)
+                break
+        return 3, c_trip
+    elif t_pair:
+        c_t_pair.sort(key=lambda c: c.value, reverse=True)
+        c_t_pair = c_t_pair[:5]
+        for card in ev_cards:
+            if card not in c_t_pair:
+                c_t_pair.append(card)
+                break
+        return 2, c_t_pair
+    elif pair:
+        for card in ev_cards:
+            if card not in c_pair:
+                c_pair.append(card)
+                break
+        for card in ev_cards:
+            if card not in c_pair:
+                c_pair.append(card)
+                break
+        for card in ev_cards:
+            if card not in c_pair:
+                c_pair.append(card)
+                break
+        return 1, c_pair
+    else:
+        return 0, ev_cards[:6]
 
 main(6)
