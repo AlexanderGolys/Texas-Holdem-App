@@ -35,3 +35,27 @@ class Card:
     def __init__(self, value, color):
         self.value = value
         self. color = color
+
+    def __lt__(self, other):
+        if self.value < other.value:
+            return True
+        return False
+
+    def __gt__(self, other):
+        if self.value > other.value:
+            return True
+        return False
+
+    def v_to_sign(self):
+        if self.value < 9:
+            return str(self.value + 1)
+        elif self.value == 9:
+            return '10'
+        elif self.value == 10:
+            return 'Jack'
+        elif self.value == 11:
+            return 'Queen'
+        elif self.value == 12:
+            return 'King'
+        elif self.value == 13:
+            return 'Ace'
