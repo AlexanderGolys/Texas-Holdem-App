@@ -27,6 +27,7 @@ PLAYER4X = WINDOWWIDTH / 2 - 20 + 240
 PLAYER4Y = WINDOWHEIGHT / 2 - 50
 PLAYER5X = WINDOWWIDTH / 2 - 20 + 50
 PLAYER5Y = WINDOWHEIGHT / 4 * 3
+MINBET = 1
 
 
 def main(no_players):
@@ -39,45 +40,49 @@ def main(no_players):
     assert no_players > 1, 'Number of players must be minimum 2'
     assert no_players < 7, 'Max number of players is 6'
     step = 0
-    players = [classes.Player(1/no_players, i) for i in range(no_players)]
+    players = [classes.Player(10000, i) for i in range(no_players)]
     dealer = random.randint(0, no_players)
-    bb = 0.02
-    sb = 0.01
+    bb = 50
+    sb = 25
     stage = 0
     pot = 0
 
     while True:
-        if stage == 0:
-            get_cards(cards, players)
+        get_cards(cards, players)
         dealer = (dealer + 1) % no_players
 
         standard_draw(players)
 
-        if stage == 0:
-            pot = play_preflop(players, dealer, bb, sb)
+        pot = play_preflop(players, dealer, bb, sb)
 
-            for player in players:
-                player.give_to_the_pot()
-                draw_players_stack(player)
-            draw_preflop_sit(players, dealer)
-            print(pot)
-            draw_pot(pot)
-            stage += 1
+        for player in players:
+            player.give_to_the_pot()
+            draw_players_stack(player)
+        draw_preflop_sit(players, dealer)
+        draw_pot(pot)
 
         flop = get_flop(cards)
         draw_flop(flop)
         pot += play_flop(players, dealer, bb, flop, pot, 0)
+
         turn = get_turn(cards)
         draw_turn(turn)
         pot += play_flop(players, dealer, bb, turn, pot, 1)
+
         river = get_river(cards)
         draw_river(river)
         pot += play_flop(players, dealer, bb, river, pot, 2)
+
         draw_pot(pot)
         for player in players:
             player.allin = False
         draw_all_hands(players)
-        winners = winning(players, river)
+        unfolded_players = []
+        for player in players:
+            if not player.fold:
+                unfolded_players.append(player)
+        winners = winning(unfolded_players, river)
+
 
         print("\n\n\n\n\n\n")
         for player in players:
@@ -87,8 +92,7 @@ def main(no_players):
             winner.earn(pot / len(winners))
             print("player ", winner.number, " won this round")
 
-        pygame.time.delay(2000)
-        sleep(2000)
+        sleep(2)
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -216,7 +220,7 @@ def give_players_coords(player_nb):
     return give_players_x_coords(player_nb), give_players_y_coords(player_nb)
 
 
-def read_decision():
+def read_decision2():
     print('what you wanna do?')
     dec = input()
     if dec == 'c':  # check or call
@@ -231,19 +235,41 @@ def read_decision():
         return read_decision()
 
 
+def read_decision():
+    bet = 0
+    while True:
+        draw_decision_bet(bet)
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == KEYDOWN:
+                if event.key == K_c:
+                    return 'check'
+                if event.key == K_f:
+                    return 'fold'
+                if event.key == K_UP:
+                    bet += MINBET
+                if event.key == K_DOWN:
+                    bet = max(0, bet - MINBET)
+                if event.key == K_RETURN:
+                    if bet == 0:
+                        return 'check'
+                    else:
+                        return bet
+
+
 def play_preflop(players, dealer, bb, sb):
     pot = 0
     i = 0
     max_bet = bb
     turn = (dealer + 1) % len(players)
-    print(players[turn])
     players[turn].raise_(sb)
     pot += sb
     draw_preflop_sit(players, turn)
     for player in players:
         draw_players_stack(player)
     turn = (turn + 1) % len(players)
-    i += 1
     players[turn].raise_(bb)
     pot += bb
     draw_preflop_sit(players, turn)
@@ -276,14 +302,14 @@ def play_preflop(players, dealer, bb, sb):
         if i > len(players):
             equal = True
             for player in players:
-                if player.bet != max_bet and not player.fold:
+                if player.bet != max_bet and not (player.fold or player.allin):
                     equal = False
     for player in players:
         player.give_to_the_pot()
     return pot
 
 
-def play_flop(players, dealer, bb, table_cards, table_pot, round):
+def play_flop(players, dealer, bb, table_cards, table_pot, round_nb):
     pot = 0
     i = 0
     max_bet = 0
@@ -293,16 +319,17 @@ def play_flop(players, dealer, bb, table_cards, table_pot, round):
         draw_players_stack(player)
     equal = False
     while not equal:
+        i += 1
         turn = (turn + 1) % len(players)
         if players[turn].fold or players[turn].allin:
             continue
         standard_draw(players)
         draw_preflop_sit(players, turn)
-        if round == 0:
+        if round_nb == 0:
             draw_flop(table_cards)
-        elif round == 1:
+        elif round_nb == 1:
             draw_turn(table_cards)
-        elif round == 2:
+        elif round_nb == 2:
             draw_river(table_cards)
         draw_pot(table_pot)
 
@@ -320,16 +347,14 @@ def play_flop(players, dealer, bb, table_cards, table_pot, round):
                 pot += max_bet - players[turn].bet
                 players[turn].raise_(max_bet - players[turn].bet)
             max_bet = players[turn].bet
-        i += 1
-        if i >= len(players):
+        if i >= len(players) - 1:
             equal = True
             for player in players:
-                if player.bet != max_bet and not player.fold:
+                if player.bet != max_bet and not (player.fold or player.allin):
                     equal = False
 
     for player in players:
         player.give_to_the_pot()
-        player.fold = False
     return pot
 
 
@@ -386,6 +411,15 @@ def draw_pot(pot):
     stack_surface = font_obj.render(str(pot)[:5], True, BLACK, STACKBG)
     stack_rect = stack_surface.get_rect()
     stack_rect.center = (WINDOWWIDTH/2, WINDOWHEIGHT *3 /5)
+    DISPLAYSURF.blit(stack_surface, stack_rect)
+    pygame.display.update()
+
+
+def draw_decision_bet(bet):
+    font_obj = pygame.font.Font('freesansbold.ttf', 15)
+    stack_surface = font_obj.render('BET: ' + str(bet), True, BLACK, STACKBG)
+    stack_rect = stack_surface.get_rect()
+    stack_rect.center = (60, 450)
     DISPLAYSURF.blit(stack_surface, stack_rect)
     pygame.display.update()
 
@@ -637,5 +671,6 @@ def evaluate(table, player):
     else:
         print("player ", player.number, "has high card ", ev_cards[0].v_to_sign())
         return 0, ev_cards[:6]
+
 
 main(6)
