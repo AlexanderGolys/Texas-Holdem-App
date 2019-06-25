@@ -14,6 +14,9 @@ class Player:
     def fold_(self):
         self.fold = True
 
+    def go_allin(self):
+        self.allin = True
+
     def raise_(self, bet):
         if bet < self.stack:
             self.stack -= bet
@@ -21,6 +24,7 @@ class Player:
             print("player ", self.number, "raised ", bet)
         else:
             self.bet += self.stack
+            self.allin = True
             self.stack = 0
             print("player ", self.number, "is all-in")
 
