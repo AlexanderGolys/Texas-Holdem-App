@@ -94,6 +94,12 @@ def play_preflop(players, dealer, bb, sb, surface):
                 players[turn].raise_(max_bet - players[turn].bet)
             max_bet = players[turn].bet
         i += 1
+
+        if one_remain(players):
+            for player in players:
+                player.give_to_the_pot()
+            return pot
+
         if i > len(players):
             equal = True
             for player in players:
@@ -144,6 +150,12 @@ def play(players, dealer, bb, table_cards, table_pot, round_nb, surface):
                 pot += max_bet - players[turn].bet
                 players[turn].raise_(max_bet - players[turn].bet)
             max_bet = players[turn].bet
+
+        if one_remain(players):
+            for player in players:
+                player.give_to_the_pot()
+            return pot
+
         if i >= len(players) - 1:
             equal = True
             for player in players:
@@ -153,3 +165,11 @@ def play(players, dealer, bb, table_cards, table_pot, round_nb, surface):
     for player in players:
         player.give_to_the_pot()
     return pot
+
+
+def one_remain(players):
+    i = 0
+    for player in players:
+        if not player.allin and not player.fold:
+            i += 1
+    return i == 1

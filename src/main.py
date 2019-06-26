@@ -35,17 +35,13 @@ def main(no_players):
         unfold = 0
         play.get_cards(cards, players)
         dealer = (dealer + 1) % no_players
-
         draw.standard_draw(players, DISPLAYSURF)
-
         pot = play.play_preflop(players, dealer, bb, sb, DISPLAYSURF)
-
         for player in players:
             player.give_to_the_pot()
             draw.draw_players_stack(player, DISPLAYSURF)
             if not player.fold:
                 unfold += 1
-
         draw.draw_preflop_sit(players, dealer, DISPLAYSURF)
         draw.draw_pot(pot, DISPLAYSURF)
 
@@ -117,6 +113,15 @@ def even_faster_load():
 
 def normal_load():
     pygame.key.set_repeat(100, 10)
+
+
+def all_allin(players):
+    for player in players:
+        if not player.allin and not player.fold:
+            return False
+    return True
+
+
 
 
 main(6)

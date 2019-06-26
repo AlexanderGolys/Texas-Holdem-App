@@ -53,7 +53,7 @@ def draw_players_reversed_cards(player, surface):
 
 def draw_players_stack(player, surface):
     font_obj = pygame.font.Font('freesansbold.ttf', 15)
-    stack_surface = font_obj.render(str(player.stack)[:5], True, BLACK, STACKBG)
+    stack_surface = font_obj.render(str(player.stack), True, BLACK, STACKBG)
     stack_rect = stack_surface.get_rect()
     stack_rect.center = (give_players_x_coords(player.number) + 20, give_players_y_coords(player.number) + 70)
     surface.blit(stack_surface, stack_rect)
@@ -151,7 +151,7 @@ def draw_preflop_sit(players, turn, surface):
     for i, player in enumerate(players):
         font_obj = pygame.font.Font('freesansbold.ttf', 15)
         if not player.fold and player.stack > 0:
-            stack_surface = font_obj.render(str(player.bet), True, BLACK, STACKBG)
+            stack_surface = font_obj.render(str(int(player.bet)), True, BLACK, STACKBG)
         elif not player.fold:
             stack_surface = font_obj.render('ALL-IN', True, BLACK, STACKBG)
         else:
@@ -209,6 +209,8 @@ def end_game_animation(surface, player):
         random.shuffle(every_px)
         surface.set_at(every_px[0], GOLD)
         del every_px[0]
+        pygame.display.update()
+
     font_obj = pygame.font.Font('freesansbold.ttf', 30)
     text = 'PLAYER ' + str(player.number) + ' WINS'
     stack_surface = font_obj.render(text, True, BLACK, GOLD)
